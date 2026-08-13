@@ -208,3 +208,5 @@ export function ComicPanel({
     </figure>
   );
 }
+
+export type { PanelRecord };
