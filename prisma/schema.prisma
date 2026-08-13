@@ -54,6 +54,9 @@ model Character {
   age         String?
   personality String?
   backstory   String?
+  face        String?
+  body_type   String?
+  locked_traits Json   @default("{}")
   is_locked   Boolean  @default(false)
   sort_order  Int      @default(0)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
@@ -74,6 +77,9 @@ model Scene {
   narration    String?
   dialogue     String?
   music        String?
+  shot_list    Json     @default("[]")
+  emotion      String?
+  transition   String?
   created_at   DateTime @default(now()) @db.Timestamptz(6)
   updated_at   DateTime @updatedAt @db.Timestamptz(6)
 
@@ -157,6 +163,8 @@ model SceneAudio {
   voice          String   @default("alloy")
   provider       String   @default("lovable")
   format         String   @default("mp3")
+  style          String   @default("neutral")
+  enhanced_text  String?
   duration_ms    Int?
   version        Int      @default(1)
   status         String   @default("pending")
@@ -183,6 +191,7 @@ model VideoRender {
   progress      Int      @default(0)
   error_message String?
   duration_ms   Int?
+  kind          String   @default("final")
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   updated_at    DateTime @updatedAt @db.Timestamptz(6)
 
