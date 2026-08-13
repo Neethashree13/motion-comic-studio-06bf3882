@@ -1,29 +1,46 @@
-# Welcome to your Lovable project
+# Comicverse AI
 
-This project was built with [Lovable](https://lovable.dev).
+Comic story, character sheet and scene image generation powered by Gemini through the Lovable AI gateway.
 
-## Build with Lovable
+## Stack
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- TanStack Start (React 19 + Vite) with server functions
+- PostgreSQL + Prisma (no Supabase)
+- Local filesystem storage for generated images
+- No authentication — every visitor sees the same workspace
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Environment
 
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+```
+DATABASE_URL="postgresql://user:password@host:5432/comic?schema=public"
+UPLOADS_DIR="uploads"          # optional, defaults to ./uploads
+LOVABLE_API_KEY="..."          # AI gateway key for story + image generation
 ```
 
-## Built with
+## Setup
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```bash
+bun install
+bun run db:migrate      # creates the schema
+bun run dev
+```
+
+## Data model
+
+Prisma schema lives in `prisma/schema.prisma`: `projects`, `characters`, `scenes`,
+`panels`, `generated_images` and `character_reference_images`. Column names are
+snake_case and match the original database, so existing data can be imported with
+a plain `pg_dump`/`pg_restore`.
+
+## Storage
+
+Generated PNGs are written under `UPLOADS_DIR` and served publicly from
+`/api/public/files/<key>` (see `src/lib/storage.server.ts`). Swap that module for
+S3/R2 if you deploy to a host without a writable filesystem — nothing else needs to
+change.
+
+## Hosting note
+
+Local filesystem storage and any future ffmpeg (comic-to-video) work require a
+Node/container host such as Fly.io, Render, Railway or Docker. Edge/worker hosts
+have no persistent filesystem and cannot spawn ffmpeg.

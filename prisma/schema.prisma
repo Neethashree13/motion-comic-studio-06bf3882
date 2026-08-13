@@ -1,0 +1,193 @@
+// Comic Generator database schema.
+// Migrated from Supabase/PostgREST to plain PostgreSQL + Prisma.
+// Column names stay snake_case via @map so existing rows remain compatible.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Project {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String   @default("Untitled story")
+  logline    String?
+  idea       String
+  genre      String
+  length     String
+  art_style  String
+  duration   String
+  voice      String
+  ending     String?
+  status     String   @default("story")
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  characters      Character[]
+  scenes          Scene[]
+  panels          Panel[]
+  generatedImages GeneratedImage[]
+  referenceImages CharacterReferenceImage[]
+  sceneAudios     SceneAudio[]
+  videoRenders    VideoRender[]
+
+  @@index([updated_at(sort: Desc)])
+  @@map("projects")
+}
+
+model Character {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String   @db.Uuid
+  name        String
+  role        String?
+  appearance  String?
+  traits      Json     @default("[]")
+  hair        String?
+  hair_color  String?
+  eye_color   String?
+  clothing    String?
+  accessories String?
+  colors      String?
+  age         String?
+  personality String?
+  backstory   String?
+  is_locked   Boolean  @default(false)
+  sort_order  Int      @default(0)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  project         Project                   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  referenceImages CharacterReferenceImage[]
+
+  @@index([project_id, sort_order])
+  @@map("characters")
+}
+
+model Scene {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id   String   @db.Uuid
+  scene_number Int
+  title        String
+  narration    String?
+  dialogue     String?
+  music        String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  project         Project          @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  panels          Panel[]
+  generatedImages GeneratedImage[]
+  sceneAudios     SceneAudio[]
+
+
+  @@index([project_id, scene_number])
+  @@map("scenes")
+}
+
+model Panel {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id   String   @db.Uuid
+  scene_id     String   @db.Uuid
+  panel_number Int
+  image_prompt String
+  caption      String?
+  image_url    String?
+  image_status String   @default("pending")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  scene   Scene   @relation(fields: [scene_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, panel_number])
+  @@map("panels")
+}
+
+model GeneratedImage {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id    String   @db.Uuid
+  scene_id      String   @db.Uuid
+  image_url     String?
+  image_prompt  String
+  version       Int      @default(1)
+  status        String   @default("generating")
+  error_message String?
+  is_selected   Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  scene   Scene   @relation(fields: [scene_id], references: [id], onDelete: Cascade)
+
+  @@index([scene_id, version(sort: Desc)])
+  @@index([project_id])
+  @@map("generated_images")
+}
+
+model CharacterReferenceImage {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  character_id  String   @db.Uuid
+  project_id    String   @db.Uuid
+  image_url     String?
+  image_prompt  String
+  view_type     String   @default("front")
+  version       Int      @default(1)
+  status        String   @default("generating")
+  error_message String?
+  is_approved   Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  character Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([character_id, view_type, version])
+  @@map("character_reference_images")
+}
+
+model SceneAudio {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id     String   @db.Uuid
+  scene_id       String   @db.Uuid
+  audio_url      String?
+  narration_text String
+  voice          String   @default("alloy")
+  provider       String   @default("lovable")
+  format         String   @default("mp3")
+  duration_ms    Int?
+  version        Int      @default(1)
+  status         String   @default("pending")
+  error_message  String?
+  is_selected    Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @updatedAt @db.Timestamptz(6)
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  scene   Scene   @relation(fields: [scene_id], references: [id], onDelete: Cascade)
+
+  @@index([scene_id, version(sort: Desc)])
+  @@index([project_id])
+  @@map("scene_audio")
+}
+
+/// Phase C — rendered comic video for a project (one active render row per project).
+/// Status lifecycle: pending -> processing -> completed | failed.
+model VideoRender {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id    String   @db.Uuid
+  video_url     String?
+  status        String   @default("pending")
+  progress      Int      @default(0)
+  error_message String?
+  duration_ms   Int?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, created_at(sort: Desc)])
+  @@map("video_renders")
+}
