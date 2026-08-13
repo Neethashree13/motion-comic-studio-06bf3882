@@ -4,11 +4,11 @@ export interface PanelRecord {
   image_prompt: string;
   caption: string | null;
   image_url: string | null;
-  image_status: 'pending' | 'generating' | 'ready' | 'failed';
+  image_status: string;
   scene_id: string;
   project_id: string;
   error_message?: string | null;
-  created_at?: string;
+  created_at?: string | Date;
 }
 
 export interface SceneRecord {
@@ -18,7 +18,7 @@ export interface SceneRecord {
   title: string;
   narration: string | null;
   dialogue: string | null;
-  created_at?: string;
+  created_at?: string | Date;
 }
 
 export interface ProjectRecord {
@@ -28,7 +28,7 @@ export interface ProjectRecord {
   art_style: string;
   logline: string | null;
   status?: string;
-  created_at?: string;
+  created_at?: string | Date;
 }
 
 export interface CharacterDetail {
