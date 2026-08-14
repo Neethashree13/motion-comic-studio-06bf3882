@@ -390,23 +390,30 @@ export class MotionEngine {
     const stream = this.canvas.captureStream(fps);
 
     // Mix every scene's narration into a single audio track.
+    // Dedicated elements: createMediaElementSource() permanently re-routes an
+    // element, so the preview players must stay untouched.
     let audioContext: AudioContext | null = null;
-    const sources: { audio: HTMLAudioElement; gain: GainNode }[] = [];
+    const sources = new Map<string, { audio: HTMLAudioElement; gain: GainNode }>();
     try {
       const Ctor: typeof AudioContext | undefined =
         window.AudioContext ??
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (Ctor && this.audios.size > 0) {
+      const withAudio = this.scenes.filter((scene) => scene.audioUrl);
+      if (Ctor && withAudio.length > 0) {
         audioContext = new Ctor();
         const destination = audioContext.createMediaStreamDestination();
-        this.audios.forEach((audio) => {
-          const source = audioContext!.createMediaElementSource(audio);
-          const gain = audioContext!.createGain();
+        for (const scene of withAudio) {
+          const audio = new Audio(scene.audioUrl!);
+          audio.crossOrigin = "anonymous";
+          audio.preload = "auto";
+          const source = audioContext.createMediaElementSource(audio);
+          const gain = audioContext.createGain();
           gain.gain.value = 0;
           source.connect(gain).connect(destination);
-          sources.push({ audio, gain });
-        });
+          sources.set(scene.sceneId, { audio, gain });
+        }
         destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+        await audioContext.resume().catch(() => undefined);
       }
     } catch {
       audioContext = null;
@@ -437,19 +444,18 @@ export class MotionEngine {
       const segment = this.segments[index];
       if (segment && segment.scene.sceneId !== currentSceneId) {
         currentSceneId = segment.scene.sceneId;
-        sources.forEach(({ gain }) => {
+        sources.forEach(({ gain, audio }) => {
           gain.gain.value = 0;
+          audio.pause();
         });
-        const entry = sources.find(([].constructor === Array ? () => false : () => false));
-        void entry;
-        const audio = this.audios.get(segment.scene.sceneId);
-        if (audio) {
-          const match = sources.find((item) => item.audio === audio);
-          if (match) match.gain.gain.value = 1;
-          audio.currentTime = 0;
-          void audio.play().catch(() => undefined);
+        const entry = sources.get(segment.scene.sceneId);
+        if (entry) {
+          entry.gain.gain.value = 1;
+          entry.audio.currentTime = 0;
+          void entry.audio.play().catch(() => undefined);
         }
       }
+
 
       this.renderAt(time);
       options?.onProgress?.(total > 0 ? time / total : 1);
