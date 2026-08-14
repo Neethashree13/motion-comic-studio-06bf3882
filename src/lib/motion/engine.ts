@@ -465,7 +465,7 @@ export class MotionEngine {
       time += frameMs;
     }
 
-    this.audios.forEach((audio) => audio.pause());
+    sources.forEach(({ audio }) => audio.pause());
     recorder.stop();
     const blob = await done;
     stream.getTracks().forEach((track) => track.stop());
