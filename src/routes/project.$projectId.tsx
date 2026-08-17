@@ -281,6 +281,17 @@ function ProjectPage() {
           </span>
         </div>
 
+        <div className="mt-6">
+          <Link
+            to="/motion/$projectId"
+            params={{ projectId }}
+            className="inline-block rounded-sm border border-primary/60 px-5 py-3 text-xs uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-primary-foreground"
+          >
+            Open Motion Studio
+          </Link>
+        </div>
+
+
         <section className="mt-12">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
