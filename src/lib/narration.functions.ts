@@ -131,8 +131,10 @@ export const generateSceneNarration = createServerFn({ method: "POST" })
           provider: result.provider,
           duration_ms: result.durationMs ?? null,
           is_selected: true,
+          style: emotion,
+          enhanced_text: narrationText,
           error_message: null,
-        },
+
       });
 
       // Old versions are superseded; free their bytes.
