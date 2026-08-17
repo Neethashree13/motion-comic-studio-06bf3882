@@ -14,6 +14,7 @@ import { Route as CharactersRouteImport } from './routes/characters'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CharacterCharacterIdRouteImport } from './routes/character.$characterId'
+import { Route as MotionProjectIdRouteImport } from './routes/motion.$projectId'
 import { Route as ProjectProjectIdRouteImport } from './routes/project.$projectId'
 import { Route as ApiPublicFilesSplatRouteImport } from './routes/api/public/files.$'
 
@@ -42,6 +43,11 @@ const CharacterCharacterIdRoute = CharacterCharacterIdRouteImport.update({
   path: '/character/$characterId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MotionProjectIdRoute = MotionProjectIdRouteImport.update({
+  id: '/motion/$projectId',
+  path: '/motion/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectProjectIdRoute = ProjectProjectIdRouteImport.update({
   id: '/project/$projectId',
   path: '/project/$projectId',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/character/$characterId': typeof CharacterCharacterIdRoute
+  '/motion/$projectId': typeof MotionProjectIdRoute
   '/project/$projectId': typeof ProjectProjectIdRoute
   '/api/public/files/$': typeof ApiPublicFilesSplatRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/character/$characterId': typeof CharacterCharacterIdRoute
+  '/motion/$projectId': typeof MotionProjectIdRoute
   '/project/$projectId': typeof ProjectProjectIdRoute
   '/api/public/files/$': typeof ApiPublicFilesSplatRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/character/$characterId': typeof CharacterCharacterIdRoute
+  '/motion/$projectId': typeof MotionProjectIdRoute
   '/project/$projectId': typeof ProjectProjectIdRoute
   '/api/public/files/$': typeof ApiPublicFilesSplatRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/character/$characterId'
+    | '/motion/$projectId'
     | '/project/$projectId'
     | '/api/public/files/$'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/character/$characterId'
+    | '/motion/$projectId'
     | '/project/$projectId'
     | '/api/public/files/$'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/character/$characterId'
+    | '/motion/$projectId'
     | '/project/$projectId'
     | '/api/public/files/$'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
   CharacterCharacterIdRoute: typeof CharacterCharacterIdRoute
+  MotionProjectIdRoute: typeof MotionProjectIdRoute
   ProjectProjectIdRoute: typeof ProjectProjectIdRoute
   ApiPublicFilesSplatRoute: typeof ApiPublicFilesSplatRoute
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CharacterCharacterIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/motion/$projectId': {
+      id: '/motion/$projectId'
+      path: '/motion/$projectId'
+      fullPath: '/motion/$projectId'
+      preLoaderRoute: typeof MotionProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/project/$projectId': {
       id: '/project/$projectId'
       path: '/project/$projectId'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
   CharacterCharacterIdRoute: CharacterCharacterIdRoute,
+  MotionProjectIdRoute: MotionProjectIdRoute,
   ProjectProjectIdRoute: ProjectProjectIdRoute,
   ApiPublicFilesSplatRoute: ApiPublicFilesSplatRoute,
 }
