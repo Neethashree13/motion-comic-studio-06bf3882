@@ -134,8 +134,9 @@ export const generateSceneNarration = createServerFn({ method: "POST" })
           style: emotion,
           enhanced_text: narrationText,
           error_message: null,
-
+        },
       });
+
 
       // Old versions are superseded; free their bytes.
       const stale = await db.sceneAudio.findMany({
