@@ -62,6 +62,7 @@ export const generateSceneNarration = createServerFn({ method: "POST" })
     const { objectUrl, putObject, removeObjects } = await import("./storage.server");
     const { audioKey, buildNarrationText } = await import("./narration.server");
     const { getTtsProvider } = await import("./tts/index.server");
+    const { EMOTION_VOICE_STYLE, normalizeEmotion } = await import("./motion/types");
     const db = getDb();
 
     const scene = await db.scene.findUnique({ where: { id: data.sceneId } });
@@ -70,13 +71,23 @@ export const generateSceneNarration = createServerFn({ method: "POST" })
     const narrationText = buildNarrationText(scene);
     if (!narrationText.trim()) throw new Error("This scene has no narration text to speak.");
 
+    // Emotional narration: the scene's directed emotion steers delivery.
+    const emotion = normalizeEmotion(scene.emotion);
+    const instructions = EMOTION_VOICE_STYLE[emotion];
+
     const latest = await db.sceneAudio.findFirst({
       where: { scene_id: scene.id },
       orderBy: { version: "desc" },
     });
 
-    // Reuse a finished clip unless the caller explicitly asked to regenerate.
-    if (!data.regenerate && latest?.status === "completed" && latest.audio_url) {
+    // Reuse a finished clip unless the caller explicitly asked to regenerate,
+    // or the scene's emotion changed since that clip was produced.
+    if (
+      !data.regenerate &&
+      latest?.status === "completed" &&
+      latest.audio_url &&
+      latest.style === emotion
+    ) {
       return { audioId: latest.id, status: latest.status, url: objectUrl(latest.audio_url) };
     }
 
@@ -93,11 +104,14 @@ export const generateSceneNarration = createServerFn({ method: "POST" })
         provider: provider.id,
         version,
         status: "generating",
+        style: emotion,
+        enhanced_text: narrationText,
       },
     });
 
     try {
-      const result = await provider.synthesize({ text: narrationText, voice });
+      const result = await provider.synthesize({ text: narrationText, voice, instructions });
+
       const key = audioKey(scene.project_id, scene.id, version, result.format);
       await putObject(key, result.bytes);
 
