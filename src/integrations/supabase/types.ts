@@ -391,6 +391,72 @@ export type Database = {
           },
         ]
       }
+      scene_clips: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          is_selected: boolean
+          job_id: string | null
+          model: string
+          progress: number
+          project_id: string
+          prompt: string
+          scene_id: string
+          status: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          is_selected?: boolean
+          job_id?: string | null
+          model?: string
+          progress?: number
+          project_id: string
+          prompt?: string
+          scene_id: string
+          status?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          is_selected?: boolean
+          job_id?: string | null
+          model?: string
+          progress?: number
+          project_id?: string
+          prompt?: string
+          scene_id?: string
+          status?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_clips_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scene_clips_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "scenes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scenes: {
         Row: {
           created_at: string
