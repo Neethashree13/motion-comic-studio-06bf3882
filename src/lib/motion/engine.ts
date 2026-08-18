@@ -17,6 +17,8 @@ export type MotionScene = {
   sceneNumber: number;
   title: string;
   imageUrl: string | null;
+  /** AI-animated clip for this scene. When present it replaces the still panel. */
+  videoUrl?: string | null;
   audioUrl: string | null;
   /** Total on-screen time for this scene. */
   durationMs: number;
@@ -52,6 +54,22 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Loads an animated clip and keeps it paused, ready to be sampled per frame. */
+function loadVideo(url: string): Promise<HTMLVideoElement> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.loop = true;
+    video.oncanplay = () => resolve(video);
+    video.onerror = () => reject(new Error(`Could not load scene clip: ${url}`));
+    video.src = url;
+    video.load();
+  });
+}
+
 function transitionMsFor(transition: Transition) {
   if (transition === "cut") return 0;
   if (transition === "flash" || transition === "whip") return 260;
@@ -64,6 +82,9 @@ export class MotionEngine {
   private scenes: MotionScene[] = [];
   private segments: Segment[] = [];
   private images = new Map<string, HTMLImageElement>();
+  private videos = new Map<string, HTMLVideoElement>();
+  /** True while the timeline advances in real time (playback or export). */
+  private driving = false;
   private audios = new Map<string, HTMLAudioElement>();
   private raf = 0;
   private lastTick = 0;
@@ -116,6 +137,17 @@ export class MotionEngine {
 
     await Promise.all(
       scenes.map(async (scene) => {
+        if (!scene.videoUrl || this.videos.has(scene.videoUrl)) return;
+        try {
+          this.videos.set(scene.videoUrl, await loadVideo(scene.videoUrl));
+        } catch {
+          /* falls back to the still panel */
+        }
+      }),
+    );
+
+    await Promise.all(
+      scenes.map(async (scene) => {
         if (!scene.imageUrl || this.images.has(scene.imageUrl)) return;
         try {
           this.images.set(scene.imageUrl, await loadImage(scene.imageUrl));
@@ -141,6 +173,7 @@ export class MotionEngine {
     if (this.playing || this.segments.length === 0) return;
     if (this.timeMs >= this.totalMs) this.timeMs = 0;
     this.playing = true;
+    this.driving = true;
     this.lastTick = performance.now();
     this.loop();
     this.emit();
@@ -148,6 +181,8 @@ export class MotionEngine {
 
   pause() {
     this.playing = false;
+    this.driving = false;
+    this.videos.forEach((video) => video.pause());
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.stopAudio();
@@ -173,6 +208,11 @@ export class MotionEngine {
       audio.src = "";
     });
     this.audios.clear();
+    this.videos.forEach((video) => {
+      video.pause();
+      video.src = "";
+    });
+    this.videos.clear();
     this.images.clear();
     this.onState = null;
   }
@@ -233,6 +273,25 @@ export class MotionEngine {
       if (timeMs < segment.endMs) return i;
     }
     return Math.max(0, this.segments.length - 1);
+  }
+
+  /**
+   * Keeps a clip in sync with the timeline. During real-time playback the clip
+   * plays natively (smooth motion) and only gets nudged when it drifts; while
+   * paused or scrubbing it is sampled by seeking.
+   */
+  private syncVideo(video: HTMLVideoElement, localMs: number) {
+    const clipDuration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+    if (clipDuration === 0) return;
+    const target = (localMs / 1000) % clipDuration;
+
+    if (this.driving) {
+      if (video.paused) void video.play().catch(() => undefined);
+      if (Math.abs(video.currentTime - target) > 0.35) video.currentTime = target;
+    } else {
+      if (!video.paused) video.pause();
+      if (Math.abs(video.currentTime - target) > 0.04) video.currentTime = target;
+    }
   }
 
   /** Renders a single composited frame at an absolute timeline position. */
@@ -329,8 +388,30 @@ export class MotionEngine {
     ctx.save();
     ctx.globalAlpha = alpha;
 
+    const video = segment.scene.videoUrl ? this.videos.get(segment.scene.videoUrl) : undefined;
     const image = segment.scene.imageUrl ? this.images.get(segment.scene.imageUrl) : undefined;
-    if (image && shot) {
+
+    if (video && video.videoWidth > 0) {
+      // The clip already carries the performance; the camera solver only adds a
+      // gentle framing move on top of it.
+      this.syncVideo(video, local);
+      const source = { width: video.videoWidth, height: video.videoHeight };
+      const rect = shot
+        ? solveCamera(
+            { ...shot, zoomStart: 1 + (shot.zoomStart - 1) * 0.35, zoomEnd: 1 + (shot.zoomEnd - 1) * 0.35 },
+            shotProgress,
+            source,
+            { width, height },
+            local,
+          )
+        : solveCamera(
+            { camera: "static", focusX: 0.5, focusY: 0.5, zoomStart: 1, zoomEnd: 1, weight: 1 },
+            0,
+            source,
+            { width, height },
+          );
+      ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, width, height);
+    } else if (image && shot) {
       const rect = solveCamera(shot, shotProgress, image, { width, height }, local);
       ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, width, height);
     } else {
@@ -387,6 +468,7 @@ export class MotionEngine {
     this.pause();
     this.seek(0);
 
+    this.driving = true;
     const stream = this.canvas.captureStream(fps);
 
     // Mix every scene's narration into a single audio track.
@@ -466,6 +548,8 @@ export class MotionEngine {
     }
 
     sources.forEach(({ audio }) => audio.pause());
+    this.driving = false;
+    this.videos.forEach((video) => video.pause());
     recorder.stop();
     const blob = await done;
     stream.getTracks().forEach((track) => track.stop());
